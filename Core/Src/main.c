@@ -1,7 +1,7 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : main.c
+  * @file           : main.c //PROJECT
   * @brief          : Main program body
   ******************************************************************************
   * @attention
@@ -20,11 +20,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stdio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "dwt_delay.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,16 +44,21 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim3;
 
+UART_HandleTypeDef huart3;
+
+/* USER CODE BEGIN PV */
 uint8_t sendUART[2] = {65, 'B'};
 uint16_t sizeSendUART = 2;
 uint8_t receiveUART[1];
 uint16_t sizeReceiveUART = 1;
-uint32_t local_time, sensor_time;
+
+uint8_t sendUARTz2[1] = {76};
+uint16_t sizeSendUARTz2 = 1;
+
+uint8_t znak;
 uint32_t distance;
+uint32_t signal_time, sensor_time;
 
-UART_HandleTypeDef huart3;
-
-/* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
 
@@ -63,35 +67,62 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART3_UART_Init(void);
-
-
 /* USER CODE BEGIN PFP */
+
+uint32_t hcsr04_read (void)
+{		// 6 echo_pin	 0 pin_trigger
+	signal_time=0;			//BIBLIOTEKA DWT_DELAY DLA DELAYU W US A NIE MS
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);  // reset pinu
+	DWT_Delay(2);
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);  // stan wysoki na pin
+	DWT_Delay(10);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);  // stan wysoki na pin
+
+	while (!(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6)));  // petla az pin nie wejdzie w stan wysoki
+	while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6))    // while jest wysoki mierz czas
+	{
+		signal_time++;
+		DWT_Delay(1);
+	}
+
+	return signal_time;
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim->Instance== TIM3)
+	{
+		HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+
+		//HAL_UART_Transmit_IT(&huart3, sendUARTz2, sizeSendUARTz2);
+
+	}
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if(huart->Instance == USART3)
+	{
+		if (znak == 'd'){
+			HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14 | GPIO_PIN_13 | GPIO_PIN_12);
+			HAL_Delay(300);
+			HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14 | GPIO_PIN_13 | GPIO_PIN_12);
+		}
+		else{
+			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, 0);
+		}
+		HAL_UART_Receive_IT(&huart3, &znak, 1);
+	}
+}
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint32_t hcsr04_read (void)
-{
- local_time=0;
- HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);  // pull the TRIG pin HIGH
- HAL_Delay(2);  // wait for 2 us
 
- HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);  // pull the TRIG pin HIGH
- HAL_Delay(10);  // wait for 10 us
- HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);  // pull the TRIG pin low
 
- // read the time for which the pin is high
-
- while (!(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6)));  // wait for the ECHO pin to go high
- while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6))    // while the pin is high
-  {
-  local_time++;   // measure time for which the pin is high
-  HAL_Delay(1);
-  }
-
- return local_time;
-}
 /* USER CODE END 0 */
 
 /**
@@ -111,7 +142,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  DWT_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -125,10 +156,12 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM3_Init();
   MX_USART3_UART_Init();
-  /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart3, receiveUART, sizeReceiveUART);
-  HAL_UART_Transmit_IT(&huart3, sendUART, sizeSendUART);
 
+  /* USER CODE BEGIN 2 */
+
+  HAL_TIM_Base_Start_IT(&htim3);
+
+  HAL_UART_Receive_IT(&huart3, &znak, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -136,15 +169,13 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  HAL_UART_Transmit_IT(&huart3, sendUART, sizeSendUART);
-	  HAL_Delay(200);
 
+    /* USER CODE BEGIN 3 */
 	  sensor_time = hcsr04_read();
 	  distance  = sensor_time * .034/2;
-	  printf("xd");
+
 
 	  HAL_Delay(200);
-    /* USER CODE BEGIN 3 */
   }
 
   /* USER CODE END 3 */
@@ -211,9 +242,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 47;
+  htim3.Init.Prescaler = 8399;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 65535;
+  htim3.Init.Period = 9999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -283,10 +314,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA6 */
   GPIO_InitStruct.Pin = GPIO_PIN_6;
@@ -300,6 +335,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PD12 PD13 PD14 PD15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 }
 
