@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "dwt_delay.h"
+#include "ff.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,7 +34,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define FA_READ 0x01
+#define FA_WRITE 0x02
+#define FA_OPEN_EXISTING 0x00
+#define FA_CREATE_NEW 0x04
+#define FA_CREATE_ALWAYS 0x08
+#define FA_OPEN_ALWAYS 0x10
+#define FA_OPEN_APPEND 0x30
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,20 +54,34 @@ DMA_HandleTypeDef hdma_dcmi;
 
 I2C_HandleTypeDef hi2c2;
 
+SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim3;
 
+UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN PV */
-uint8_t sendUART[2] = {65, 'B'};
+uint8_t sendUART[2] = {65,'B'};
 uint16_t sizeSendUART = 2;
+uint8_t sendUARTz2[1] = {76};
+uint16_t sizeSendUARTz2 = 1;
 uint8_t receiveUART[1];
 uint16_t sizeReceiveUART = 1;
 
-uint8_t sendUARTz2[1] = {76};
-uint16_t sizeSendUARTz2 = 1;
+
+char buffer[256]; //bufor
+static FATFS FatFs; //uchwyt
+FRESULT fresult; //wyniku operacji
+
+FIL file;
+FIL file2;
+WORD bytes_written;
+WORD bytes_read;
 
 uint8_t znak;
 uint32_t distance;
 uint32_t signal_time, sensor_time;
+
 
 
 /* USER CODE END PV */
@@ -72,7 +93,25 @@ static void MX_TIM3_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_DMA_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if(huart->Instance == USART2)
+		{// tutaj umieszczamy kod wykonywany po otrzymaniu bajtu
+			HAL_UART_Receive_IT(&huart2, receiveUART, sizeReceiveUART);
+			if (receiveUART[0] == 100){
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, 1);
+			}
+			else{
+				HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, 0);
+			}
+			HAL_UART_Transmit_IT(&huart2, receiveUART, sizeSendUARTz2);
+		}
+}
+
 
 uint32_t hcsr04_read (void)
 {		// 6 echo_pin	 0 pin_trigger
@@ -95,32 +134,15 @@ uint32_t hcsr04_read (void)
 }
 
 
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim->Instance== TIM3)
 	{
-		HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
-
-		//HAL_UART_Transmit_IT(&huart3, sendUARTz2, sizeSendUARTz2);
-
+		//HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
 	}
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	if(huart->Instance == USART3)
-	{
-		if (znak == 'd'){
-			HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14 | GPIO_PIN_13 | GPIO_PIN_12);
-			HAL_Delay(300);
-			HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_14 | GPIO_PIN_13 | GPIO_PIN_12);
-		}
-		else{
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, 0);
-		}
-		HAL_UART_Receive_IT(&huart3, &znak, 1);
-	}
-}
 
 /* USER CODE END PFP */
 
@@ -163,11 +185,26 @@ int main(void)
   MX_DCMI_Init();
   MX_I2C2_Init();
   MX_DMA_Init();
+  MX_USART2_UART_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start_IT(&htim3);
+  HAL_UART_Receive_IT(&huart2, receiveUART, sizeReceiveUART);
+  //HAL_UART_Receive_IT(&huart3, &znak, 1);
 
-  HAL_UART_Receive_IT(&huart3, &znak, 1);
+  fresult = f_mount(&FatFs, "", 0);
+  fresult = f_open(&file, "write.txt", FA_OPEN_ALWAYS | FA_WRITE);
+  int len = sprintf( buffer, "Testing fatfs\r\n");
+  fresult = f_write(&file, buffer, len, &bytes_written);
+  fresult = f_close(&file);
+
+
+  fresult = f_open(&file2, "read.txt", FA_READ);
+  fresult = f_read(&file2, buffer, 16, &bytes_read);
+  fresult = f_close(&file2);
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -246,14 +283,12 @@ static void MX_DCMI_Init(void)
 
   /* USER CODE END DCMI_Init 1 */
   hdcmi.Instance = DCMI;
-  hdcmi.Init.SynchroMode = DCMI_SYNCHRO_EMBEDDED;
+  hdcmi.Init.SynchroMode = DCMI_SYNCHRO_HARDWARE;
   hdcmi.Init.PCKPolarity = DCMI_PCKPOLARITY_RISING;
+  hdcmi.Init.VSPolarity = DCMI_VSPOLARITY_HIGH;
+  hdcmi.Init.HSPolarity = DCMI_HSPOLARITY_LOW;
   hdcmi.Init.CaptureRate = DCMI_CR_ALL_FRAME;
   hdcmi.Init.ExtendedDataMode = DCMI_EXTEND_DATA_8B;
-  hdcmi.Init.SyncroCode.FrameEndCode = 0;
-  hdcmi.Init.SyncroCode.FrameStartCode = 0;
-  hdcmi.Init.SyncroCode.LineStartCode = 0;
-  hdcmi.Init.SyncroCode.LineEndCode = 0;
   hdcmi.Init.JPEGMode = DCMI_JPEG_DISABLE;
   if (HAL_DCMI_Init(&hdcmi) != HAL_OK)
   {
@@ -300,6 +335,44 @@ static void MX_I2C2_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief TIM3 Initialization Function
   * @param None
   * @retval None
@@ -341,6 +414,39 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 9600;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
