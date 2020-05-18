@@ -24,7 +24,6 @@
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
-extern DMA_HandleTypeDef hdma_dcmi;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
@@ -95,62 +94,50 @@ void HAL_DCMI_MspInit(DCMI_HandleTypeDef* hdcmi)
     /* Peripheral clock enable */
     __HAL_RCC_DCMI_CLK_ENABLE();
   
+    __HAL_RCC_GPIOE_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     /**DCMI GPIO Configuration    
+    PE4     ------> DCMI_D4
+    PE5     ------> DCMI_D6
+    PE6     ------> DCMI_D7
     PA4     ------> DCMI_HSYNC
     PA6     ------> DCMI_PIXCLK
     PC6     ------> DCMI_D0
     PC7     ------> DCMI_D1
     PC8     ------> DCMI_D2
     PC9     ------> DCMI_D3
-    PC11     ------> DCMI_D4
     PB6     ------> DCMI_D5
-    PB7     ------> DCMI_VSYNC
-    PB8     ------> DCMI_D6
-    PB9     ------> DCMI_D7 
+    PB7     ------> DCMI_VSYNC 
     */
+    GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
+    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
     GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_6;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9 
-                          |GPIO_PIN_11;
+    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9;
+    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    /* DCMI DMA Init */
-    /* DCMI Init */
-    hdma_dcmi.Instance = DMA2_Stream1;
-    hdma_dcmi.Init.Channel = DMA_CHANNEL_1;
-    hdma_dcmi.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_dcmi.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_dcmi.Init.MemInc = DMA_MINC_DISABLE;
-    hdma_dcmi.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
-    hdma_dcmi.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
-    hdma_dcmi.Init.Mode = DMA_NORMAL;
-    hdma_dcmi.Init.Priority = DMA_PRIORITY_LOW;
-    hdma_dcmi.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    if (HAL_DMA_Init(&hdma_dcmi) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    __HAL_LINKDMA(hdcmi,DMA_Handle,hdma_dcmi);
 
     /* DCMI interrupt Init */
     HAL_NVIC_SetPriority(DCMI_IRQn, 0, 0);
@@ -179,27 +166,25 @@ void HAL_DCMI_MspDeInit(DCMI_HandleTypeDef* hdcmi)
     __HAL_RCC_DCMI_CLK_DISABLE();
   
     /**DCMI GPIO Configuration    
+    PE4     ------> DCMI_D4
+    PE5     ------> DCMI_D6
+    PE6     ------> DCMI_D7
     PA4     ------> DCMI_HSYNC
     PA6     ------> DCMI_PIXCLK
     PC6     ------> DCMI_D0
     PC7     ------> DCMI_D1
     PC8     ------> DCMI_D2
     PC9     ------> DCMI_D3
-    PC11     ------> DCMI_D4
     PB6     ------> DCMI_D5
-    PB7     ------> DCMI_VSYNC
-    PB8     ------> DCMI_D6
-    PB9     ------> DCMI_D7 
+    PB7     ------> DCMI_VSYNC 
     */
+    HAL_GPIO_DeInit(GPIOE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6);
+
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_4|GPIO_PIN_6);
 
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9 
-                          |GPIO_PIN_11);
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9);
 
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9);
-
-    /* DCMI DMA DeInit */
-    HAL_DMA_DeInit(hdcmi->DMA_Handle);
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_6|GPIO_PIN_7);
 
     /* DCMI interrupt DeInit */
     HAL_NVIC_DisableIRQ(DCMI_IRQn);
@@ -416,7 +401,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     */
     GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);

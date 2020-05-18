@@ -43,7 +43,7 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING
  19 .comment      0000007b  00000000  00000000  0013f56f  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00005d98  00000000  00000000  0013f5ec  2**2
+ 20 .debug_frame  00005d9c  00000000  00000000  0013f5ec  2**2
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -8556,8 +8556,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   */
 int main(void)
 {
- 8003c18:	b590      	push	{r4, r7, lr}
- 8003c1a:	b083      	sub	sp, #12
+ 8003c18:	b5b0      	push	{r4, r5, r7, lr}
+ 8003c1a:	b082      	sub	sp, #8
  8003c1c:	af00      	add	r7, sp, #0
   
 
@@ -8626,17 +8626,17 @@ int main(void)
  8003c78:	461a      	mov	r2, r3
  8003c7a:	4b37      	ldr	r3, [pc, #220]	; (8003d58 <main+0x140>)
  8003c7c:	701a      	strb	r2, [r3, #0]
-  int len = sprintf( buffer, "Hello PTM!\r\n");
+  int len = sprintf( buffer, "Testing fatfs\r\n");
  8003c7e:	4a39      	ldr	r2, [pc, #228]	; (8003d64 <main+0x14c>)
  8003c80:	4b39      	ldr	r3, [pc, #228]	; (8003d68 <main+0x150>)
  8003c82:	4614      	mov	r4, r2
- 8003c84:	cb07      	ldmia	r3!, {r0, r1, r2}
- 8003c86:	6020      	str	r0, [r4, #0]
- 8003c88:	6061      	str	r1, [r4, #4]
- 8003c8a:	60a2      	str	r2, [r4, #8]
- 8003c8c:	781b      	ldrb	r3, [r3, #0]
- 8003c8e:	7323      	strb	r3, [r4, #12]
- 8003c90:	230c      	movs	r3, #12
+ 8003c84:	461d      	mov	r5, r3
+ 8003c86:	cd0f      	ldmia	r5!, {r0, r1, r2, r3}
+ 8003c88:	6020      	str	r0, [r4, #0]
+ 8003c8a:	6061      	str	r1, [r4, #4]
+ 8003c8c:	60a2      	str	r2, [r4, #8]
+ 8003c8e:	60e3      	str	r3, [r4, #12]
+ 8003c90:	230f      	movs	r3, #15
  8003c92:	607b      	str	r3, [r7, #4]
   fresult = f_write(&file, buffer, len, &bytes_written);
  8003c94:	687a      	ldr	r2, [r7, #4]

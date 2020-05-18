@@ -25,6 +25,10 @@
 /* USER CODE BEGIN Includes */
 #include "dwt_delay.h"
 #include "ff.h"
+#include <stdbool.h>
+#include "common.h"
+#include "commonMsg.h"
+#include "camera.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,7 +54,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 DCMI_HandleTypeDef hdcmi;
-DMA_HandleTypeDef hdma_dcmi;
 
 I2C_HandleTypeDef hi2c2;
 
@@ -92,7 +95,6 @@ static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_I2C2_Init(void);
-static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
@@ -161,7 +163,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -184,10 +185,18 @@ int main(void)
   MX_TIM3_Init();
   MX_DCMI_Init();
   MX_I2C2_Init();
-  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+
+  if (camera_init() == RET_OK)
+    {
+  	  if (camera_config(CAMERA_MODE_QVGA_RGB565) == RET_OK) // CAMERA_MODE_QVGA_RGB565 -> ignored
+  	  {
+  		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // init OK
+  	  }
+    }
+
 
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_UART_Receive_IT(&huart2, receiveUART, sizeReceiveUART);
@@ -211,6 +220,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  if (camera_startCap(CAMERA_CAP_SINGLE_FRAME, (uint32_t)cam_buf) == RET_OK) // single cam frame = CAMERA_CAP_SINGLE_FRAME
+	  	  {
+	  		  for (int i = 0; i < 174; i++) // first row only
+	  		  {
+	  			  YValues[i] = ((cam_buf[i] << 8) >> 8); // even byte (Yi)
+	  		  }
+
+	  		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // captured
+	  	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -450,22 +469,6 @@ static void MX_USART2_UART_Init(void)
 
 }
 
-/** 
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void) 
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA2_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA2_Stream1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
-
-}
-
 /**
   * @brief GPIO Initialization Function
   * @param None
@@ -476,6 +479,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -486,7 +490,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA7 */
   GPIO_InitStruct.Pin = GPIO_PIN_7;
@@ -501,8 +505,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PD12 PD13 PD14 PD15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  /*Configure GPIO pins : PD12 PD14 PD15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_14|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
