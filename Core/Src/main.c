@@ -55,13 +55,9 @@
 /* Private variables ---------------------------------------------------------*/
 DCMI_HandleTypeDef hdcmi;
 DMA_HandleTypeDef hdma_dcmi;
-
 I2C_HandleTypeDef hi2c2;
-
 SPI_HandleTypeDef hspi1;
-
 TIM_HandleTypeDef htim3;
-
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
