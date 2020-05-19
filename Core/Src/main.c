@@ -49,19 +49,24 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+DMA_HandleTypeDef hdma_dcmi;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 DCMI_HandleTypeDef hdcmi;
-DMA_HandleTypeDef hdma_dcmi;
+
 I2C_HandleTypeDef hi2c2;
+
 SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim3;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint8_t sendUART[2] = {65,'B'};
+uint8_t sendNot[12] = {'W', 'y', 'k', 'r', 'y', 't', 'o', ' ', 'r', 'u', 'c', 'h' };
+uint16_t sizeNot = 12;
 uint16_t sizeSendUART = 2;
 uint8_t sendUARTz2[1] = {76};
 uint16_t sizeSendUARTz2 = 1;
@@ -199,7 +204,7 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_UART_Receive_IT(&huart2, receiveUART, sizeReceiveUART);
-  //HAL_UART_Receive_IT(&huart3, &znak, 1);
+
   /*
   fresult = f_mount(&FatFs, "", 0);
   fresult = f_open(&file, "write.txt", FA_OPEN_ALWAYS | FA_WRITE);
@@ -226,11 +231,7 @@ int main(void)
 	  	  {
 	  		  for (int i = 0; i < 174; i++) // first row only
 	  		  {
-
 	  			  YValues[i] = ((cam_buf[i] << 8) >> 8); // even byte (Yi)
-	  			  for (int j = 0; j < 144; j++){
-	  				  XValues[j] = ((cam_buf[j] << 8) >> 8);
-	  			  }
 	  		  }
 
 	  		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // captured
@@ -256,6 +257,7 @@ int main(void)
 		    	  fresult = f_close (&file);
 		    }
 		  flag_xd += 1;
+		  HAL_UART_Transmit_IT(&huart2, sendNot, sizeNot);
 	  }
 
 	  HAL_Delay(200);
