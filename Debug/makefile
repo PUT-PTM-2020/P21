@@ -32,6 +32,9 @@ default.size.stdout \
 OBJDUMP_LIST += \
 PTM-P21-Project.list \
 
+OBJCOPY_BIN += \
+PTM-P21-Project.bin \
+
 
 # All Target
 all: PTM-P21-Project.elf secondary-outputs
@@ -52,12 +55,17 @@ PTM-P21-Project.list: $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+PTM-P21-Project.bin: $(EXECUTABLES)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "PTM-P21-Project.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
 	-$(RM) *
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
 
 .PHONY: all clean dependents
 .SECONDARY:

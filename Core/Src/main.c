@@ -54,6 +54,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 DCMI_HandleTypeDef hdcmi;
+DMA_HandleTypeDef hdma_dcmi;
 
 I2C_HandleTypeDef hi2c2;
 
@@ -70,7 +71,7 @@ uint8_t sendUARTz2[1] = {76};
 uint16_t sizeSendUARTz2 = 1;
 uint8_t receiveUART[1];
 uint16_t sizeReceiveUART = 1;
-
+int flag_xd = 0;
 
 char buffer[256]; //bufor
 static FATFS FatFs; //uchwyt
@@ -85,7 +86,9 @@ uint8_t znak;
 uint32_t distance;
 uint32_t signal_time, sensor_time;
 
-
+volatile uint16_t cam_buf[174 * 144]; // hardcoded frame size
+uint8_t YValues[174] = { 0 };
+uint8_t XValues[144] = { 0 };
 
 /* USER CODE END PV */
 
@@ -201,7 +204,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_UART_Receive_IT(&huart2, receiveUART, sizeReceiveUART);
   //HAL_UART_Receive_IT(&huart3, &znak, 1);
-
+  /*
   fresult = f_mount(&FatFs, "", 0);
   fresult = f_open(&file, "write.txt", FA_OPEN_ALWAYS | FA_WRITE);
   int len = sprintf( buffer, "Testing fatfs\r\n");
@@ -211,7 +214,9 @@ int main(void)
 
   fresult = f_open(&file2, "read.txt", FA_READ);
   fresult = f_read(&file2, buffer, 16, &bytes_read);
-  fresult = f_close(&file2);
+  fresult = f_close(&file2);*/
+
+
 
 
   /* USER CODE END 2 */
@@ -225,7 +230,11 @@ int main(void)
 	  	  {
 	  		  for (int i = 0; i < 174; i++) // first row only
 	  		  {
+
 	  			  YValues[i] = ((cam_buf[i] << 8) >> 8); // even byte (Yi)
+	  			  for (int j = 0; j < 144; j++){
+	  				  XValues[j] = ((cam_buf[j] << 8) >> 8);
+	  			  }
 	  		  }
 
 	  		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // captured
@@ -236,6 +245,22 @@ int main(void)
 	  sensor_time = hcsr04_read();
 	  distance  = sensor_time * .034/2;
 
+
+	  if(distance < 20 && flag_xd == 0){
+		  if (camera_startCap(CAMERA_CAP_SINGLE_FRAME, (uint32_t)cam_buf) == RET_OK)
+		    {
+		  	  camera_stopCap();
+		  	  f_mount(&FatFs, "", 0);
+		  	  f_open(&file, "image.raw", FA_OPEN_ALWAYS | FA_CREATE_ALWAYS | FA_WRITE);
+
+		  	  for (int i = 0; i < 174*144; i++)
+		  	  {
+		  		  f_write(&file, cam_buf[i], 2, &bytes_written);
+		  	  }
+		    	  fresult = f_close (&file);
+		    }
+		  flag_xd += 1;
+	  }
 
 	  HAL_Delay(200);
   }

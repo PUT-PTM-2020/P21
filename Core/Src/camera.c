@@ -13,7 +13,7 @@
 
 extern DCMI_HandleTypeDef hdcmi;
 extern DMA_HandleTypeDef hdma_dcmi;
-extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
 
 /*** Internal Const Values, Macros ***/
 /*** Internal Static Variables ***/
@@ -22,7 +22,7 @@ extern I2C_HandleTypeDef hi2c1;
 /*** External Function Defines ***/
 RET camera_init()
 {
-  return ov7670_init(&hdcmi, &hdma_dcmi, &hi2c1);
+  return ov7670_init(&hdcmi, &hdma_dcmi, &hi2c2);
 }
 
 RET camera_rd(uint8_t regAddr, uint8_t *data)
