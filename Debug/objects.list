@@ -1,3 +1,4 @@
+"Core/Src/OV7670_control.o"
 "Core/Src/camera.o"
 "Core/Src/diskio.o"
 "Core/Src/dwt_delay.o"
@@ -10,6 +11,7 @@
 "Core/Src/stm32f4xx_it.o"
 "Core/Src/syscalls.o"
 "Core/Src/sysmem.o"
+"Core/Src/system_control.o"
 "Core/Src/system_stm32f4xx.o"
 "Core/Startup/startup_stm32f407vgtx.o"
 "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o"

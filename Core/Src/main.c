@@ -32,6 +32,10 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include "system_control.h"
+#include "OV7670_control.h"
+
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -77,6 +81,15 @@ uint8_t sendUARTz2[1] = {76};
 uint16_t sizeSendUARTz2 = 1;
 uint8_t receiveUART[1];
 uint16_t sizeReceiveUART = 1;
+
+//TEST
+
+static volatile bool frame_flag = false;
+static volatile bool send_sync_frame = false;
+
+volatile uint8_t temp_buffer[IMG_ROWS * IMG_COLUMNS];
+//
+
 
 char buffer[256]; //bufor
 static FATFS FatFs; //uchwyt
@@ -136,6 +149,39 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			}
 			HAL_UART_Transmit_IT(&huart2, receiveUART, sizeSendUARTz2);
 		}
+}
+
+void dumpFrame(void) {
+
+	uint8_t *buffer = (uint8_t *) frame_buffer;
+	int length = IMG_ROWS * IMG_COLUMNS * 2;
+	// Copy every other byte from the main frame buffer to our temporary buffer (this converts the image to grey scale)
+	int i;
+	for (i = 1; i < length; i += 2) {
+		temp_buffer[i / 2] = buffer[i];
+	}
+	// We only send the sync frame if it has been requested
+	if (send_sync_frame) {
+		for (i = 0x7f; i > 0; i--) {
+			uint8_t val = i;
+			Serial_sendb(&val);
+		}
+		send_sync_frame = false;
+	}
+
+	for (i = 0; i < (length / 2); i++) {
+		if (i > 100) {
+			Serial_sendb(&temp_buffer[i]);
+		} else {
+			uint8_t val = 0xff;
+			Serial_sendb(&val); // Change first 100 pixels to white to provide a reference for where the frame starts
+		}
+	}
+	// Enable capture and DMA after we have sent the photo. This is a workaround for the timing issues I've been having where
+	// the DMA transfer is not in sync with the frames being sent
+	DMA_Cmd(DMA2_Stream1, ENABLE);
+	DCMI_Cmd(ENABLE);
+	DCMI_CaptureCmd(ENABLE);
 }
 
 
@@ -265,7 +311,7 @@ int main(void)
 		  			  sprintf(str, "%d", photo_num);
 		  			  char *file_result = concat(str, ".raw");
 		  			  photo_num += 1;
-
+		  			  dumpFrame();
 		  			  f_open(&file, "image.raw", FA_OPEN_ALWAYS | FA_CREATE_ALWAYS | FA_WRITE);
 
 		  			  HAL_Delay(50);
@@ -278,6 +324,7 @@ int main(void)
 
 		  			  fresult = f_close (&file);
 		  			  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET); // captured
+		  			  HAL_UART_Transmit_IT(&huart2, sendNot, sizeNot);
 		  		  }
 		  HAL_Delay(2000);
 	  }
